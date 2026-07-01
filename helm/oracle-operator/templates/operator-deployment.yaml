@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oracle-operator
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "oracle-operator.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.operator.replicas }}
+  selector:
+    matchLabels:
+      app: oracle-operator
+  template:
+    metadata:
+      labels:
+        app: oracle-operator
+    spec:
+      serviceAccountName: oracle-operator
+      containers:
+        - name: operator
+          image: {{ .Values.operator.image.repository }}:{{ .Values.operator.image.tag }}
+          imagePullPolicy: {{ .Values.operator.image.pullPolicy }}
+          args:
+            - --webhook-cert-path=/certs
+          env:
+            - name: MOCK_API_URL
+              value: http://mock-oracle-api.{{ .Values.namespace }}.svc.cluster.local:8080
+            - name: ENABLE_WEBHOOKS
+              value: "true"
+          ports:
+            - containerPort: 9443
+              name: webhook
+          volumeMounts:
+            - name: webhook-tls
+              mountPath: /certs
+              readOnly: true
+      volumes:
+        - name: webhook-tls
+          secret:
+            secretName: oracle-operator-webhook-tls

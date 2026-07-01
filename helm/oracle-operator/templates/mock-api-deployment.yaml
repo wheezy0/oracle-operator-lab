@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mock-oracle-api
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "oracle-operator.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mock-oracle-api
+  template:
+    metadata:
+      labels:
+        app: mock-oracle-api
+    spec:
+      containers:
+        - name: api
+          image: {{ .Values.mockApi.image.repository }}:{{ .Values.mockApi.image.tag }}
+          imagePullPolicy: {{ .Values.mockApi.image.pullPolicy }}
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DATABASE_URL
+              value: sqlite:////data/mock_oracle.db
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: mock-oracle-api-data

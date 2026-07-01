@@ -1,0 +1,23 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: oracle-operator
+  labels:
+    {{- include "oracle-operator.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["oracle.dboperator.io"]
+    resources: ["oracledatabases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["oracle.dboperator.io"]
+    resources: ["oracledatabases/status"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: ["oracle.dboperator.io"]
+    resources: ["oracledatabases/finalizers"]
+    verbs: ["update"]
+  # Leader election
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]

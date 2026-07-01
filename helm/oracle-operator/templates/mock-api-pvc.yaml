@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mock-oracle-api-data
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "oracle-operator.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.mockApi.storage.size }}

@@ -1,0 +1,19 @@
+[Unit]
+Description=Oracle Database Operator
+After=network.target k3s.service mock-oracle-api.service
+
+[Service]
+Type=simple
+User=stefanb
+WorkingDirectory=/home/stefanb/oracle-operator-lab/oracle-operator
+Environment=KUBECONFIG=/home/stefanb/.kube/config
+Environment=MOCK_API_URL=http://localhost:8080
+ExecStart=/home/stefanb/oracle-operator-lab/oracle-operator/bin/oracle-operator \
+  --webhook-cert-path=/home/stefanb/oracle-operator-lab/oracle-operator/certs
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

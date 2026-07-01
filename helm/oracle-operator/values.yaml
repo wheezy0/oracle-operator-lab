@@ -1,0 +1,37 @@
+namespace: oracle-system
+
+operator:
+  image:
+    repository: oracle-operator
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicas: 1
+
+mockApi:
+  image:
+    repository: mock-oracle-api
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: NodePort
+    nodePort: 30080
+  storage:
+    size: 1Gi
+
+# TLS certificate for the admission webhook.
+# Populate by running:  bash helm/generate-certs.sh
+# Then install with:    helm install oracle-operator ./helm/oracle-operator -f helm/certs.yaml
+webhook:
+  tls:
+    crt: ""   # base64-encoded TLS certificate
+    key: ""   # base64-encoded TLS private key
+    ca: ""    # base64-encoded CA certificate (used as caBundle in webhook config)
+
+# Team namespaces and RBAC — set enabled: false to skip
+teams:
+  enabled: true
+  list:
+    - name: team-finance
+      user: finance-dba
+    - name: team-devops
+      user: devops-dba

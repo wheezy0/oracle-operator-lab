@@ -1,0 +1,23 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: oracle-operator-validating-webhook
+  labels:
+    {{- include "oracle-operator.labels" . | nindent 4 }}
+webhooks:
+  - name: voracledatabase-v1alpha1.kb.io
+    admissionReviewVersions: ["v1"]
+    clientConfig:
+      service:
+        name: oracle-operator-webhook
+        namespace: {{ .Values.namespace }}
+        path: /validate-oracle-dboperator-io-v1alpha1-oracledatabase
+        port: 9443
+      caBundle: {{ required "webhook.tls.ca is required — run: bash helm/generate-certs.sh" .Values.webhook.tls.ca }}
+    rules:
+      - apiGroups: ["oracle.dboperator.io"]
+        apiVersions: ["v1alpha1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["oracledatabases"]
+    sideEffects: None
+    failurePolicy: Fail

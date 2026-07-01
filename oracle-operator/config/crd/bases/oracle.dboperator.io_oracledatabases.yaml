@@ -1,0 +1,187 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.21.0
+  name: oracledatabases.oracle.dboperator.io
+spec:
+  group: oracle.dboperator.io
+  names:
+    kind: OracleDatabase
+    listKind: OracleDatabaseList
+    plural: oracledatabases
+    singular: oracledatabase
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.dbName
+      name: DBName
+      type: string
+    - jsonPath: .spec.version
+      name: Version
+      type: string
+    - jsonPath: .spec.sizeGB
+      name: SizeGB
+      type: integer
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: OracleDatabase is the Schema for the oracledatabases API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of OracleDatabase
+            properties:
+              characterSet:
+                default: AL32UTF8
+                description: characterSet is the Oracle character set, e.g. "AL32UTF8".
+                type: string
+              dbName:
+                description: dbName is the name of the Oracle database (SID or CDB
+                  name).
+                maxLength: 8
+                minLength: 1
+                type: string
+              owner:
+                description: owner is the Oracle DBA username that will own this database.
+                minLength: 1
+                type: string
+              pdbName:
+                description: pdbName is the name of the Pluggable Database (PDB) inside
+                  the CDB. Optional.
+                type: string
+              serviceName:
+                description: serviceName is the Oracle Net service name used to connect
+                  to this database.
+                type: string
+              sizeGB:
+                description: sizeGB is the initial allocated size of the database
+                  in gigabytes.
+                format: int32
+                maximum: 65536
+                minimum: 1
+                type: integer
+              suspended:
+                description: |-
+                  suspended, when true, stops the database and keeps it stopped.
+                  The operator will not self-heal a suspended database.
+                  Set back to false (or remove the field) to restart it.
+                type: boolean
+              version:
+                description: version is the Oracle database version, e.g. "19c" or
+                  "21c".
+                minLength: 1
+                type: string
+            required:
+            - dbName
+            - owner
+            - sizeGB
+            - version
+            type: object
+          status:
+            description: status defines the observed state of OracleDatabase
+            properties:
+              conditions:
+                description: conditions represent the current state of the OracleDatabase
+                  resource.
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              dbID:
+                description: dbID is the ID assigned by the mock API backend once
+                  the database is created.
+                type: string
+              message:
+                description: message is a human-readable description of the current
+                  status or last error.
+                type: string
+              phase:
+                description: 'phase is the current lifecycle phase of the database:
+                  Pending, Creating, Ready, Failed, Deleting.'
+                type: string
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

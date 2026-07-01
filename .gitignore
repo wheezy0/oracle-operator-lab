@@ -1,0 +1,25 @@
+# Generated TLS certificates — contain private keys
+helm/certs/
+helm/certs.yaml
+oracle-operator/certs/
+
+# Generated user certs and kubeconfigs — contain credentials
+rbac/*.kubeconfig
+rbac/*.crt
+rbac/*.key
+
+# SQLite database
+mock-api/*.db
+
+# Go build artifacts
+oracle-operator/bin/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Editor
+.idea/
+.vscode/
+*.swp

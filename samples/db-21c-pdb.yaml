@@ -1,0 +1,13 @@
+apiVersion: oracle.dboperator.io/v1alpha1
+kind: OracleDatabase
+metadata:
+  name: financedb
+  namespace: default
+spec:
+  dbName: FINDB
+  owner: findba
+  version: "21c"
+  characterSet: AL32UTF8
+  sizeGB: 2048
+  serviceName: finance.internal
+  pdbName: FINPDB1

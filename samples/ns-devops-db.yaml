@@ -1,0 +1,11 @@
+apiVersion: oracle.dboperator.io/v1alpha1
+kind: OracleDatabase
+metadata:
+  name: cidb
+  namespace: team-devops
+spec:
+  dbName: CIDB01
+  owner: devops-dba
+  version: "21c"
+  sizeGB: 200
+  serviceName: ci.internal

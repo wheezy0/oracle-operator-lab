@@ -1,0 +1,13 @@
+apiVersion: oracle.dboperator.io/v1alpha1
+kind: OracleDatabase
+metadata:
+  name: proddb01
+  namespace: default
+spec:
+  dbName: PRODDB01
+  owner: dba
+  version: "19c"
+  characterSet: AL32UTF8
+  sizeGB: 500
+  serviceName: proddb01.example.com
+  pdbName: PRODPDB1

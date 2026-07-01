@@ -1,0 +1,10 @@
+apiVersion: oracle.dboperator.io/v1alpha1
+kind: OracleDatabase
+metadata:
+  name: devdb01
+  namespace: default
+spec:
+  dbName: DEVDB01
+  owner: devdba
+  version: "19c"
+  sizeGB: 50

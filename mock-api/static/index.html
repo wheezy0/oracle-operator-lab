@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Oracle Database Operator</title>
+  <style>
+    :root {
+      --bg:          #0f172a;
+      --surface:     #1e293b;
+      --surface2:    #263248;
+      --border:      #334155;
+      --text:        #e2e8f0;
+      --muted:       #64748b;
+      --green:       #22c55e;
+      --green-dim:   #14532d;
+      --yellow:      #eab308;
+      --yellow-dim:  #713f12;
+      --red:         #f87171;
+      --red-dim:     #7f1d1d;
+      --blue:        #60a5fa;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      min-height: 100vh;
+    }
+
+    /* ---- Header ---- */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo-icon { font-size: 20px; }
+    .logo h1 { font-size: 16px; font-weight: 600; }
+    .logo h1 span { color: var(--muted); font-weight: 400; }
+
+    .sse-pill {
+      display: flex; align-items: center; gap: 6px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      transition: all 0.3s;
+    }
+    .sse-pill .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background 0.3s;
+    }
+    .sse-pill.connected { color: var(--green); border-color: var(--green-dim); }
+    .sse-pill.connected .dot { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .sse-pill.disconnected { color: var(--red); border-color: var(--red-dim); }
+    .sse-pill.disconnected .dot { background: var(--red); }
+
+    /* ---- Main ---- */
+    main { padding: 24px; max-width: 1400px; margin: 0 auto; }
+
+    /* ---- Stats row ---- */
+    .stats {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 20px;
+      min-width: 110px;
+      flex: 1;
+    }
+    .stat .val { font-size: 32px; font-weight: 700; line-height: 1; }
+    .stat .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-top: 6px; }
+    .stat.s-ready  .val { color: var(--green); }
+    .stat.s-create .val { color: var(--yellow); }
+    .stat.s-stop   .val { color: var(--red); }
+    .stat.s-total  .val { color: var(--blue); }
+
+    /* ---- Table ---- */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { background: var(--bg); }
+    th {
+      padding: 10px 16px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    td {
+      padding: 13px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr { transition: background .1s; }
+    tbody tr:hover td { background: var(--surface2); }
+
+    .empty td {
+      text-align: center;
+      color: var(--muted);
+      padding: 48px 16px;
+      font-style: italic;
+    }
+
+    /* ---- Cell styles ---- */
+    .ns-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      font-family: monospace;
+      font-size: 12px;
+      color: var(--blue);
+    }
+    .k8s-name { font-family: monospace; font-size: 13px; color: var(--text); }
+    .db-name  { font-family: monospace; font-size: 14px; font-weight: 700; }
+    .db-sub   { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+    /* ---- Phase badge ---- */
+    .phase {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .phase::before { content: ''; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .ph-ready    { background: var(--green-dim);  color: var(--green);  }
+    .ph-ready::before  { background: var(--green); }
+    .ph-creating { background: var(--yellow-dim); color: var(--yellow); animation: pulse 1.4s ease-in-out infinite; }
+    .ph-creating::before { background: var(--yellow); }
+    .ph-starting { background: #1e3a5f; color: var(--blue); animation: pulse 1.4s ease-in-out infinite; }
+    .ph-starting::before { background: var(--blue); }
+    .ph-stopped  { background: var(--red-dim);    color: var(--red);    }
+    .ph-stopped::before  { background: var(--red); }
+    .ph-failed   { background: var(--red-dim);    color: var(--red);    }
+    .ph-failed::before   { background: var(--red); }
+    .ph-pending  { background: var(--surface2);   color: var(--muted);  border: 1px solid var(--border); }
+    .ph-pending::before  { background: var(--muted); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.55; }
+    }
+
+    .msg {
+      font-size: 12px; color: var(--muted);
+      max-width: 220px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    /* ---- Buttons ---- */
+    .btn-stop, .btn-remove {
+      background: transparent;
+      border: 1px solid var(--red);
+      color: var(--red);
+      padding: 5px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      transition: all .15s;
+      white-space: nowrap;
+    }
+    .btn-stop:hover:not(:disabled) { background: var(--red); color: #fff; }
+    .btn-remove { border-color: var(--muted); color: var(--muted); }
+    .btn-remove:hover:not(:disabled) { background: var(--muted); color: var(--bg); }
+    .btn-stop:disabled, .btn-remove:disabled { opacity: 0.4; cursor: not-allowed; }
+    .action-btns { display: flex; gap: 6px; }
+    .action-note { font-size: 12px; color: var(--muted); font-style: italic; white-space: nowrap; }
+
+    /* ---- Footer ---- */
+    footer {
+      text-align: center;
+      padding: 16px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="logo-icon">🗄</span>
+    <h1>Oracle Database Operator <span>/ Dashboard</span></h1>
+  </div>
+  <div class="sse-pill" id="sse-pill">
+    <div class="dot"></div>
+    <span id="sse-label">Connecting...</span>
+  </div>
+</header>
+
+<main>
+  <div class="stats">
+    <div class="stat s-ready">
+      <div class="val" id="cnt-ready">0</div>
+      <div class="lbl">Ready</div>
+    </div>
+    <div class="stat s-create">
+      <div class="val" id="cnt-creating">0</div>
+      <div class="lbl">Creating</div>
+    </div>
+    <div class="stat s-stop">
+      <div class="val" id="cnt-stopped">0</div>
+      <div class="lbl">Stopped</div>
+    </div>
+    <div class="stat s-total">
+      <div class="val" id="cnt-total">0</div>
+      <div class="lbl">Total</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Namespace</th>
+          <th>K8s Resource</th>
+          <th>DB Name</th>
+          <th>Version</th>
+          <th>Size</th>
+          <th>Owner</th>
+          <th>Phase</th>
+          <th>Message</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="db-body">
+        <tr class="empty"><td colspan="9">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<footer id="footer">—</footer>
+
+<script>
+  const dbs = {}; // id → record
+
+  // ---- Render ----
+
+  function phaseBadge(phase) {
+    const cls = 'ph-' + phase.toLowerCase();
+    return `<span class="phase ${cls}">${phase}</span>`;
+  }
+
+  function fmtSize(gb) {
+    return gb >= 1024 ? (gb / 1024).toFixed(0) + ' TB' : gb + ' GB';
+  }
+
+  function fmtAction(db) {
+    if (db.phase === 'Ready')
+      return `<div class="action-btns">
+        <button class="btn-stop"   onclick="stopDb('${db.id}',this)">⏹ Stop</button>
+        <button class="btn-remove" onclick="removeDb('${db.id}',this)">✕ Remove</button>
+      </div>`;
+    if (db.phase === 'Stopped')
+      return `<button class="btn-remove" onclick="removeDb('${db.id}',this)">✕ Remove</button>`;
+    if (db.phase === 'Creating')
+      return `<span class="action-note">Provisioning…</span>`;
+    if (db.phase === 'Starting')
+      return `<span class="action-note">Starting…</span>`;
+    return '';
+  }
+
+  function render() {
+    const tbody = document.getElementById('db-body');
+    const list = Object.values(dbs).sort((a, b) => {
+      const ns = (a.k8sNamespace || '').localeCompare(b.k8sNamespace || '');
+      return ns !== 0 ? ns : a.dbName.localeCompare(b.dbName);
+    });
+
+    if (!list.length) {
+      tbody.innerHTML = '<tr class="empty"><td colspan="9">No databases found.</td></tr>';
+    } else {
+      tbody.innerHTML = list.map(db => `
+        <tr>
+          <td><span class="ns-badge">${db.k8sNamespace || '—'}</span></td>
+          <td><span class="k8s-name">${db.k8sName || '—'}</span></td>
+          <td>
+            <div class="db-name">${db.dbName}</div>
+            <div class="db-sub">${db.characterSet}</div>
+          </td>
+          <td>${db.version}</td>
+          <td>${fmtSize(db.sizeGB)}</td>
+          <td>${db.owner}</td>
+          <td>${phaseBadge(db.phase)}</td>
+          <td><div class="msg" title="${db.message || ''}">${db.message || ''}</div></td>
+          <td>${fmtAction(db)}</td>
+        </tr>
+      `).join('');
+    }
+
+    document.getElementById('cnt-ready').textContent   = list.filter(d => d.phase === 'Ready').length;
+    document.getElementById('cnt-creating').textContent = list.filter(d => d.phase === 'Creating' || d.phase === 'Starting').length;
+    document.getElementById('cnt-stopped').textContent  = list.filter(d => d.phase === 'Stopped').length;
+    document.getElementById('cnt-total').textContent   = list.length;
+    document.getElementById('footer').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+  }
+
+  // ---- Actions ----
+
+  async function stopDb(id, btn) {
+    btn.disabled = true;
+    btn.textContent = 'Stopping…';
+    await fetch(`/databases/${id}/status`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ phase: 'Stopped', message: 'Stopped by user via dashboard' })
+    }).catch(() => { btn.disabled = false; btn.textContent = '⏹ Stop'; });
+  }
+
+  async function removeDb(id, btn) {
+    btn.disabled = true;
+    btn.textContent = 'Removing…';
+    await fetch(`/databases/${id}`, {
+      method: 'DELETE'
+    }).catch(() => { btn.disabled = false; btn.textContent = '✕ Remove'; });
+  }
+
+  // ---- Data loading ----
+
+  async function loadAll() {
+    const res = await fetch('/databases');
+    const list = await res.json();
+    list.forEach(db => { dbs[db.id] = db; });
+    render();
+  }
+
+  // ---- SSE ----
+
+  function connectSSE() {
+    const pill  = document.getElementById('sse-pill');
+    const label = document.getElementById('sse-label');
+    const es = new EventSource('/databases/watch');
+
+    es.onopen = () => {
+      pill.className = 'sse-pill connected';
+      label.textContent = 'Live';
+    };
+    es.onmessage = (e) => {
+      const { type, object } = JSON.parse(e.data);
+      if (type === 'ADDED' || type === 'MODIFIED') dbs[object.id] = object;
+      else if (type === 'DELETED') delete dbs[object.id];
+      render();
+    };
+    es.onerror = () => {
+      pill.className = 'sse-pill disconnected';
+      label.textContent = 'Disconnected — retrying…';
+    };
+  }
+
+  loadAll().then(connectSSE);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,77 @@
+# Namespaces
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-finance
+  labels:
+    team: finance
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-devops
+  labels:
+    team: devops
+
+# Role — grants full CRUD on OracleDatabase resources within a namespace.
+# Status and finalizers are read-only (operator-only writes).
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: oracle-dba
+  namespace: team-finance
+rules:
+  - apiGroups: ["oracle.dboperator.io"]
+    resources: ["oracledatabases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["oracle.dboperator.io"]
+    resources: ["oracledatabases/status"]
+    verbs: ["get"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: oracle-dba
+  namespace: team-devops
+rules:
+  - apiGroups: ["oracle.dboperator.io"]
+    resources: ["oracledatabases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["oracle.dboperator.io"]
+    resources: ["oracledatabases/status"]
+    verbs: ["get"]
+
+# RoleBindings — bind each user to their namespace Role
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: finance-dba-binding
+  namespace: team-finance
+subjects:
+  - kind: User
+    name: finance-dba
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: oracle-dba
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: devops-dba-binding
+  namespace: team-devops
+subjects:
+  - kind: User
+    name: devops-dba
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: oracle-dba
+  apiGroup: rbac.authorization.k8s.io

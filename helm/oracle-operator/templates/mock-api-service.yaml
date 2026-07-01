@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock-oracle-api
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "oracle-operator.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: mock-oracle-api
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http
+      {{- if eq .Values.mockApi.service.type "NodePort" }}
+      nodePort: {{ .Values.mockApi.service.nodePort }}
+      {{- end }}
+  type: {{ .Values.mockApi.service.type }}

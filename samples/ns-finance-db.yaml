@@ -1,0 +1,13 @@
+apiVersion: oracle.dboperator.io/v1alpha1
+kind: OracleDatabase
+metadata:
+  name: financedb-prod
+  namespace: team-finance
+spec:
+  dbName: FINPROD
+  owner: finance-dba
+  version: "19c"
+  characterSet: AL32UTF8
+  sizeGB: 1024
+  serviceName: finance-prod.internal
+  pdbName: FINPDB1

@@ -1,0 +1,13 @@
+apiVersion: oracle.dboperator.io/v1alpha1
+kind: OracleDatabase
+metadata:
+  name: dwdb01
+  namespace: default
+spec:
+  dbName: DWDB01
+  owner: dwdba
+  version: "23c"
+  characterSet: AL32UTF8
+  sizeGB: 16384
+  serviceName: datawarehouse.internal
+  pdbName: DWPDB1
