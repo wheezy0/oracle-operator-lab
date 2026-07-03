@@ -9,7 +9,7 @@ A fully functional **Kubernetes operator** that manages Oracle database resource
 - A **Custom Resource Definition (CRD)** that extends the Kubernetes API with a new resource type: `OracleDatabase`
 - A **controller** (operator) written in Go that watches for these resources and reacts to changes
 - A **mock REST API** written in Python that simulates the Oracle database middleware layer
-- Everything running on a **single Debian laptop** using k3s
+- Runs on any standard Kubernetes cluster — tested on **k3s** (Linux) and **Rancher Desktop** (macOS Apple Silicon)
 
 ---
 
@@ -24,6 +24,17 @@ In a real enterprise environment, provisioning an Oracle database involves:
 
 This project simulates that entire chain using Kubernetes as the control plane.
 
+**What this lab covers:**
+
+| Step | In this lab |
+|------|------------|
+| 1. Middleware API | ✅ Fully implemented — FastAPI mock with validation, CRUD, and SSE streaming |
+| 2. Oracle provisioning layer | ⚡ Simulated — an 8-second background task stands in for a real Oracle cluster |
+| 3. Async provisioning | ✅ Implemented — Creating → Ready transition with phase tracking |
+| 4. State tracking | ✅ Implemented — status written back to the CRD, visible via `kubectl get oracledatabases` |
+
+**Not included:** real Oracle connectivity, enterprise authentication (LDAP/SSO), high availability, multi-region routing.
+
 ---
 
 ## Architecture
@@ -34,7 +45,7 @@ This project simulates that entire chain using Kubernetes as the control plane.
          │  kubectl apply -f database.yaml
          ▼
 ┌──────────────────────────────────────────────────────┐
-│                    k3s Cluster                       │
+│                 Kubernetes Cluster                   │
 │                                                      │
 │   ┌──────────────────┐     ┌────────────────────┐   │
 │   │  OracleDatabase  │     │  Oracle Operator   │   │
@@ -70,13 +81,13 @@ This project simulates that entire chain using Kubernetes as the control plane.
 
 | Layer | Technology | Why |
 |-------|-----------|-----|
-| Kubernetes | k3s | Single binary, zero overhead, perfect for a laptop lab |
+| Kubernetes | k3s / Rancher Desktop | Lightweight local clusters — k3s on Linux, Rancher Desktop on macOS |
 | Operator framework | kubebuilder v4 | Industry standard for Go operators, generates CRD manifests |
 | Controller language | Go | Native k8s client libraries, compiled binary, ideal for controllers |
 | Mock API language | Python | FastAPI is the fastest way to build a well-documented REST API |
 | Mock API framework | FastAPI + uvicorn | Async support, built-in OpenAPI docs, SSE streaming |
 | Mock API storage | SQLite via SQLAlchemy | Zero-config, file-based, perfect for simulation |
-| Service management | systemd | Native to Debian, handles restarts and boot ordering |
+| Deployment packaging | Helm | Packages all resources into a single installable chart |
 
 ---
 
@@ -161,7 +172,7 @@ The mock API simulates three things a real Oracle middleware would do:
 ### Admission webhook for duplicate prevention
 The operator runs a Validating Admission Webhook on port 9443 (HTTPS). When `kubectl apply` is called, the k8s API server pauses and asks the webhook "is this allowed?" before accepting the resource. The webhook lists all existing `OracleDatabase` resources and rejects the request if `spec.dbName` is already in use anywhere in the cluster. This catches the error at the earliest possible point — before the resource is created in k8s and before the controller ever runs.
 
-The webhook uses a self-signed TLS certificate valid for 10 years. Since the operator runs outside the cluster (on the host), the webhook configuration uses a `url` field pointing to `https://127.0.0.1:9443` rather than a Kubernetes service reference. The certificate's CA bundle is embedded directly in the `ValidatingWebhookConfiguration` object so the API server can verify the webhook's identity.
+The webhook uses a self-signed TLS certificate valid for 10 years. In the Helm deployment the operator runs inside the cluster as a pod, so the webhook configuration uses a Kubernetes `Service` reference rather than a URL. The certificate is generated with the in-cluster service DNS name as SAN (`oracle-operator-webhook.oracle-system.svc`) and its CA bundle is embedded directly in the `ValidatingWebhookConfiguration` so the API server can verify the webhook's identity.
 
 ### Finalizer pattern
 The operator registers a finalizer on every resource it manages. This ensures the controller always gets a chance to clean up the external resource (the mock API record) before Kubernetes removes the CRD object. Without this, deleting a resource would leave orphaned records in the mock API.
@@ -190,8 +201,7 @@ Rather than using the Watch SSE stream from inside the operator, the controller 
 | API endpoints | 10 (9 JSON + 1 HTML dashboard) |
 | CRD fields (spec) | 8 |
 | Admission webhooks | 1 (ValidateCreate + ValidateUpdate) |
-| Deployment options | 2 (systemd or Helm) |
-| systemd services | 2 |
+| Deployment | Helm chart |
 | Helm chart templates | 12 |
 | Sample YAML files | 6 |
 | RBAC namespaces | 2 (team-finance, team-devops) |
