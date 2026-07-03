@@ -291,37 +291,26 @@ curl -s -N http://localhost:8080/databases/watch
 
 ## Backend
 
-The API uses **SQLite** via SQLAlchemy. The database file is created automatically at startup:
-
-```
-mock-api/mock_oracle.db
-```
+The API uses **SQLite** via SQLAlchemy. In the Helm deployment the database file lives on a PersistentVolumeClaim inside the cluster at `/data/mock_oracle.db`.
 
 To reset all data (wipe the database):
 
 ```bash
-sudo systemctl stop mock-oracle-api.service
-rm ~/oracle-operator-lab/mock-api/mock_oracle.db
-sudo systemctl start mock-oracle-api.service
+kubectl exec -n oracle-system deployment/mock-oracle-api -- rm /data/mock_oracle.db
+kubectl rollout restart deployment/mock-oracle-api -n oracle-system
 ```
 
 ---
 
-## Starting the API
-
-### Via systemd (recommended)
+## Managing the API Pod
 
 ```bash
-sudo systemctl start mock-oracle-api.service
-sudo systemctl status mock-oracle-api.service
-journalctl -u mock-oracle-api.service -f
-```
+# Check status
+kubectl get pods -n oracle-system -l app=mock-oracle-api
 
-### Manually (for development)
+# View logs
+kubectl logs -n oracle-system deployment/mock-oracle-api -f
 
-```bash
-cd ~/oracle-operator-lab/mock-api
-./run.sh
-# or with auto-reload:
-venv/bin/uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+# Restart
+kubectl rollout restart deployment/mock-oracle-api -n oracle-system
 ```

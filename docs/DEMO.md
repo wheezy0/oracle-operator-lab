@@ -6,17 +6,17 @@ Step-by-step scenarios for testing and demonstrating the full stack.
 
 ## Before You Start
 
-Make sure all services are running:
+Make sure all pods are running:
 
 ```bash
-systemctl is-active mock-oracle-api.service oracle-operator.service k3s.service
+kubectl get pods -n oracle-system
 ```
 
 Expected output:
 ```
-active
-active
-active
+NAME                               READY   STATUS    RESTARTS
+mock-oracle-api-xxxxxxxxx-xxxxx    1/1     Running   0
+oracle-operator-xxxxxxxxx-xxxxx    1/1     Running   0
 ```
 
 Check the mock API is responding:
@@ -391,24 +391,25 @@ kubectl apply -f my-database.yaml
 
 ---
 
-## Scenario 15 — Restart Services and Verify Recovery
+## Scenario 15 — Restart Pods and Verify Recovery
 
-Stop both services:
+Delete both pods to simulate a crash (Kubernetes will recreate them automatically):
 
 ```bash
-sudo systemctl stop oracle-operator.service mock-oracle-api.service
+kubectl delete pod -n oracle-system -l app=oracle-operator
+kubectl delete pod -n oracle-system -l app=mock-oracle-api
 ```
 
-Check that existing k8s resources still exist (they live in k3s etcd, not in the services):
+Check that existing k8s resources still exist (they live in k3s etcd, not in the pods):
 
 ```bash
 kubectl get oracledatabases
 ```
 
-Restart services:
+Watch the pods come back:
 
 ```bash
-sudo systemctl start mock-oracle-api.service oracle-operator.service
+kubectl get pods -n oracle-system -w
 ```
 
 The operator will reconcile all existing resources on startup. Databases that exist in k8s but not in the API backend will be re-created.
@@ -426,23 +427,22 @@ kubectl get oracledatabase <name> -o yaml            # raw YAML
 kubectl delete oracledatabase <name>                 # delete (triggers cleanup)
 
 # --- Logs ---
-journalctl -u oracle-operator.service -f             # operator logs (live)
-journalctl -u mock-oracle-api.service -f             # API logs (live)
-journalctl -u oracle-operator.service -n 50          # last 50 lines
+kubectl logs -n oracle-system deployment/oracle-operator -f       # operator logs (live)
+kubectl logs -n oracle-system deployment/mock-oracle-api -f       # API logs (live)
+kubectl logs -n oracle-system deployment/oracle-operator --tail=50 # last 50 lines
 
 # --- API ---
-curl -s http://localhost:8080/databases              # list all records
-curl -s http://localhost:8080/docs                   # Swagger UI (open in browser)
-curl -s -N http://localhost:8080/databases/watch     # SSE stream
-# http://localhost:8080/ui                           # Web dashboard (open in browser)
+curl -s http://localhost:30080/databases              # list all records
+curl -s http://localhost:30080/docs                   # Swagger UI (open in browser)
+curl -s -N http://localhost:30080/databases/watch     # SSE stream
+# http://localhost:30080/ui                           # Web dashboard (open in browser)
 
-# --- Services ---
-sudo systemctl status mock-oracle-api.service        # check status
-sudo systemctl status oracle-operator.service
-sudo systemctl restart oracle-operator.service       # restart after binary rebuild
+# --- Pods ---
+kubectl get pods -n oracle-system                                   # check status
+kubectl rollout restart deployment/oracle-operator -n oracle-system # restart operator
+kubectl rollout restart deployment/mock-oracle-api -n oracle-system # restart mock API
 
-# --- Reset API backend ---
-sudo systemctl stop mock-oracle-api.service
-rm ~/oracle-operator-lab/mock-api/mock_oracle.db
-sudo systemctl start mock-oracle-api.service
+# --- Reset API backend (wipes SQLite data in the PVC) ---
+kubectl exec -n oracle-system deployment/mock-oracle-api -- rm /data/mock_oracle.db
+kubectl rollout restart deployment/mock-oracle-api -n oracle-system
 ```

@@ -1,8 +1,6 @@
 # Helm Deployment
 
-This document covers deploying the Oracle Database Operator using Helm — the production-style alternative to the systemd services described in [STARTUP.md](STARTUP.md).
-
-With Helm, everything runs **inside the k3s cluster** as pods:
+Everything runs **inside the Kubernetes cluster** as pods:
 - The operator runs as a `Deployment` in the `oracle-system` namespace
 - The mock API runs as a `Deployment` with a `PersistentVolumeClaim` for SQLite storage
 - The webhook uses a Kubernetes `Service` instead of a host port
@@ -48,25 +46,13 @@ Verify:
 sudo k3s ctr images ls | grep -E "oracle-operator|mock-oracle"
 ```
 
----
-
-## Step 3 — Stop the Systemd Services
-
-The systemd services use the same ports and the same `ValidatingWebhookConfiguration`. Stop them before installing the Helm chart.
-
-```bash
-sudo systemctl stop oracle-operator.service mock-oracle-api.service
-
-# Remove the old URL-based webhook config
-kubectl delete validatingwebhookconfiguration oracle-operator-validating-webhook
-```
+> **macOS (Rancher Desktop):** Images built with `docker build` are automatically available — skip the import step.
 
 ---
 
-## Step 4 — Generate the Webhook TLS Certificate
+## Step 3 — Generate the Webhook TLS Certificate
 
-The webhook needs a new certificate with the in-cluster service DNS name as SAN
-(the old cert covered `127.0.0.1`, which no longer applies).
+The webhook requires a certificate with the in-cluster service DNS name as SAN.
 
 ```bash
 bash ~/oracle-operator-lab/helm/generate-certs.sh
@@ -78,7 +64,7 @@ This creates `helm/certs/` with the raw cert files and `helm/certs.yaml` with th
 
 ---
 
-## Step 5 — Install the Chart
+## Step 4 — Install the Chart
 
 ```bash
 helm install oracle-operator ~/oracle-operator-lab/helm/oracle-operator \
@@ -96,7 +82,7 @@ Helm creates in order:
 
 ---
 
-## Step 6 — Verify
+## Step 5 — Verify
 
 ```bash
 # Check pods are running
@@ -126,8 +112,6 @@ http://localhost:30080/ui
 ---
 
 ## Applying Databases
-
-Works exactly the same as before — the operator watches across all namespaces:
 
 ```bash
 kubectl apply -f ~/oracle-operator-lab/samples/db-19c-small.yaml
@@ -170,37 +154,3 @@ This removes all resources except the CRD (Helm never deletes CRDs on uninstall 
 ```bash
 kubectl delete crd oracledatabases.oracle.dboperator.io
 ```
-
----
-
-## Reverting to Systemd
-
-To go back to the systemd-based setup:
-
-```bash
-# Uninstall Helm chart
-helm uninstall oracle-operator
-kubectl delete crd oracledatabases.oracle.dboperator.io
-
-# Re-apply the CRD and URL-based webhook
-kubectl apply -f ~/oracle-operator-lab/oracle-operator/config/crd/bases/oracle.dboperator.io_oracledatabases.yaml
-kubectl apply -f ~/oracle-operator-lab/oracle-operator/config/webhook/validating-webhook.yaml
-kubectl apply -f ~/oracle-operator-lab/rbac/setup.yaml
-
-# Start systemd services
-sudo systemctl start mock-oracle-api.service oracle-operator.service
-```
-
----
-
-## Key Differences vs Systemd Deployment
-
-| | Systemd | Helm |
-|--|---------|------|
-| Operator runs | On host machine | Inside k3s as a pod |
-| Auth to k8s | `~/.kube/config` | ServiceAccount token |
-| Webhook endpoint | `https://127.0.0.1:9443` | k8s Service (in-cluster) |
-| Mock API port | 8080 | NodePort 30080 |
-| SQLite storage | File on disk | PersistentVolumeClaim |
-| Deploy update | Rebuild binary + restart service | Rebuild image + rollout restart |
-| Packaging | Binary | Container image |

@@ -12,7 +12,7 @@ Complete step-by-step guide to replicate this project from scratch on a Debian m
 | `curl` | `sudo apt install -y curl` |
 | `git` | Usually pre-installed |
 | `make` | Usually pre-installed |
-| Sudo access | Needed for k3s and systemd |
+| Sudo access | Needed for k3s installation |
 
 ---
 
@@ -285,35 +285,24 @@ kubectl get crd oracledatabases.oracle.dboperator.io
 
 ---
 
-## Step 6 — Install systemd Services
+## Step 6 — Deploy with Helm
 
-Two service files are provided in the project root.
+See [HELM.md](HELM.md) for the full deployment procedure. The short version:
 
 ```bash
-sudo cp ~/oracle-operator-lab/mock-oracle-api.service /etc/systemd/system/
-sudo cp ~/oracle-operator-lab/oracle-operator.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now mock-oracle-api.service
-sudo systemctl enable --now oracle-operator.service
+# Build container images
+docker build -t oracle-operator:latest ./oracle-operator/
+docker build -t mock-oracle-api:latest ./mock-api/
+
+# Import into k3s (Linux only — not needed on Rancher Desktop)
+docker save oracle-operator:latest | sudo k3s ctr images import -
+docker save mock-oracle-api:latest | sudo k3s ctr images import -
+
+# Generate webhook TLS cert and install the chart
+bash ~/oracle-operator-lab/helm/generate-certs.sh
+helm install oracle-operator ~/oracle-operator-lab/helm/oracle-operator \
+  -f ~/oracle-operator-lab/helm/certs.yaml
 ```
-
-### Service: `mock-oracle-api.service`
-
-| Property | Value |
-|----------|-------|
-| Binary | `venv/bin/uvicorn main:app` |
-| Listen | `0.0.0.0:8080` |
-| Starts after | `network.target` |
-| Restart | on-failure, 5s delay |
-
-### Service: `oracle-operator.service`
-
-| Property | Value |
-|----------|-------|
-| Binary | `bin/oracle-operator` |
-| Env vars | `KUBECONFIG`, `MOCK_API_URL` |
-| Starts after | `k3s.service`, `mock-oracle-api.service` |
-| Restart | on-failure, 5s delay |
 
 ---
 
@@ -350,70 +339,26 @@ func SetupOracleDatabaseWebhookWithManager(mgr ctrl.Manager) error {
 
 ### 7.3 Generate the TLS certificate
 
-Webhooks require HTTPS. Generate a self-signed certificate covering `127.0.0.1` and `localhost`:
+Webhooks require HTTPS. Since the operator runs inside the cluster as a pod, the certificate must use the in-cluster service DNS name as SAN. The `generate-certs.sh` script handles this:
 
 ```bash
-mkdir -p ~/oracle-operator-lab/oracle-operator/certs
-openssl req -x509 -newkey rsa:2048 \
-  -keyout ~/oracle-operator-lab/oracle-operator/certs/tls.key \
-  -out ~/oracle-operator-lab/oracle-operator/certs/tls.crt \
-  -days 3650 -nodes \
-  -subj "/CN=oracle-operator-webhook" \
-  -addext "subjectAltName=IP:127.0.0.1,DNS:localhost"
+bash ~/oracle-operator-lab/helm/generate-certs.sh
 ```
 
-> **Important:** The certificate is valid for 10 years. If you ever rebuild the k3s cluster from scratch, you must regenerate this certificate and re-apply the webhook configuration. The `caBundle` in the webhook YAML must always match the certificate the operator is using. See [STARTUP.md](STARTUP.md) for the full procedure.
+This creates `helm/certs/tls.crt` and `helm/certs/tls.key` with the SAN `oracle-operator-webhook.oracle-system.svc`, and writes `helm/certs.yaml` with the base64-encoded values for Helm.
 
-### 7.4 Create the ValidatingWebhookConfiguration
+> The certificate is valid for 10 years. Always pass `--reuse-values` on `helm upgrade` to avoid regenerating it.
 
-Since the operator runs outside the cluster (on the host), use a `url`-based webhook configuration rather than a service reference. Embed the certificate as the `caBundle`:
+### 7.4 Deploy via Helm
+
+The Helm chart creates the `ValidatingWebhookConfiguration` using a Kubernetes `Service` reference (not a URL). The CA bundle is taken from `certs.yaml` and embedded in the webhook object automatically:
 
 ```bash
-CA_BUNDLE=$(base64 -w0 ~/oracle-operator-lab/oracle-operator/certs/tls.crt)
-cat > ~/oracle-operator-lab/oracle-operator/config/webhook/validating-webhook.yaml << EOF
-apiVersion: admissionregistration.k8s.io/v1
-kind: ValidatingWebhookConfiguration
-metadata:
-  name: oracle-operator-validating-webhook
-webhooks:
-  - name: voracledatabase-v1alpha1.kb.io
-    admissionReviewVersions: ["v1"]
-    clientConfig:
-      url: "https://127.0.0.1:9443/validate-oracle-dboperator-io-v1alpha1-oracledatabase"
-      caBundle: ${CA_BUNDLE}
-    rules:
-      - apiGroups: ["oracle.dboperator.io"]
-        apiVersions: ["v1alpha1"]
-        operations: ["CREATE", "UPDATE"]
-        resources: ["oracledatabases"]
-    sideEffects: None
-    failurePolicy: Fail
-EOF
+helm install oracle-operator ~/oracle-operator-lab/helm/oracle-operator \
+  -f ~/oracle-operator-lab/helm/certs.yaml
 ```
 
-### 7.5 Update the systemd service
-
-Add the `--webhook-cert-path` flag to the operator's `ExecStart` line in `oracle-operator.service`:
-
-```ini
-ExecStart=/home/stefanb/oracle-operator-lab/oracle-operator/bin/oracle-operator \
-  --webhook-cert-path=/home/stefanb/oracle-operator-lab/oracle-operator/certs
-```
-
-### 7.6 Build, install, and apply
-
-```bash
-# Rebuild the binary
-go build -o bin/oracle-operator ./cmd/main.go
-
-# Install updated service file and restart
-sudo cp ~/oracle-operator-lab/oracle-operator.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl restart oracle-operator.service
-
-# Apply the webhook configuration
-kubectl apply -f ~/oracle-operator-lab/oracle-operator/config/webhook/validating-webhook.yaml
-```
+The chart creates the webhook configuration, the TLS secret, and the operator deployment in one step. No separate `kubectl apply` needed.
 
 ---
 
@@ -422,8 +367,6 @@ kubectl apply -f ~/oracle-operator-lab/oracle-operator/config/webhook/validating
 ```
 oracle-operator-lab/
 ├── README.md
-├── mock-oracle-api.service       # systemd unit
-├── oracle-operator.service       # systemd unit
 ├── sample-database.yaml          # original test resource
 ├── samples/
 │   ├── db-19c-small.yaml
@@ -450,7 +393,6 @@ oracle-operator-lab/
 │   ├── run.sh
 │   ├── static/
 │   │   └── index.html            # Web dashboard (served at /ui)
-│   └── venv/                     # Python virtual environment (systemd only)
 └── oracle-operator/
     ├── api/v1alpha1/
     │   ├── oracledatabase_types.go
@@ -461,9 +403,6 @@ oracle-operator-lab/
     ├── internal/webhook/v1alpha1/
     │   └── oracledatabase_webhook.go
     ├── cmd/main.go
-    ├── certs/
-    │   ├── tls.crt                # self-signed webhook certificate (10yr)
-    │   └── tls.key
     ├── config/crd/bases/
     │   └── oracle.dboperator.io_oracledatabases.yaml
     ├── config/webhook/

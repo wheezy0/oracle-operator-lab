@@ -9,6 +9,6 @@
 | [DATABASE-TEMPLATE.md](DATABASE-TEMPLATE.md) | YAML templates for creating databases |
 | [RBAC.md](RBAC.md) | Namespace isolation, team users, and kubeconfigs |
 | [DEMO.md](DEMO.md) | Demo scenarios and useful commands |
-| [STARTUP.md](STARTUP.md) | How to start everything after a reboot (systemd) |
-| [HELM.md](HELM.md) | Deploy everything inside k3s using Helm |
+| [STARTUP.md](STARTUP.md) | How to verify everything is running after a reboot |
+| [HELM.md](HELM.md) | Deploy everything inside Kubernetes using Helm |
 | [INSTALL_ON_MAC.md](INSTALL_ON_MAC.md) | Install on macOS Apple Silicon using Rancher Desktop |
