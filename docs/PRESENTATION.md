@@ -196,13 +196,14 @@ Rather than using the Watch SSE stream from inside the operator, the controller 
 | Item | Count |
 |------|-------|
 | Go source files | 6 |
-| Python source lines | ~280 |
+| Python source lines | ~300 |
 | HTML dashboard | 1 (dark theme, SSE live updates) |
 | API endpoints | 10 (9 JSON + 1 HTML dashboard) |
 | CRD fields (spec) | 8 |
 | Admission webhooks | 1 (ValidateCreate + ValidateUpdate) |
+| Authentication | API key (Kubernetes Secret, optional) |
 | Deployment | Helm chart |
-| Helm chart templates | 12 |
+| Helm chart templates | 13 |
 | Sample YAML files | 6 |
 | RBAC namespaces | 2 (team-finance, team-devops) |
 
@@ -214,6 +215,9 @@ Rather than using the Watch SSE stream from inside the operator, the controller 
 - ~~**Multiple namespaces** — scope databases by namespace/team with RBAC isolation~~ ✅ **Implemented**
 - ~~**Web GUI dashboard** — real-time view of all databases with Stop/Remove actions~~ ✅ **Implemented**
 - ~~**Helm chart** — package the CRD and operator for easy deployment~~ ✅ **Implemented**
+- ~~**API key authentication** — protect mock API endpoints; key stored in a Kubernetes Secret~~ ✅ **Implemented**
 - **Status conditions** — populate the `conditions` array with structured machine-readable state
 - **Prometheus metrics** — expose provisioning duration, error rates
+- **TLS on the mock API** — encrypt operator-to-API traffic (currently plaintext HTTP inside the cluster)
+- **Dashboard login** — protect the web UI behind a reverse proxy with proper authentication
 - **Real Oracle connectivity** — replace the mock API with a real Oracle REST Data Services (ORDS) endpoint
