@@ -264,7 +264,15 @@
 <footer id="footer">—</footer>
 
 <script>
+  const API_KEY = "__API_KEY__";
   const dbs = {}; // id → record
+
+  function apiHeaders(json = false) {
+    const h = {};
+    if (API_KEY) h['X-API-Key'] = API_KEY;
+    if (json) h['Content-Type'] = 'application/json';
+    return h;
+  }
 
   // ---- Render ----
 
@@ -334,7 +342,7 @@
     btn.textContent = 'Stopping…';
     await fetch(`/databases/${id}/status`, {
       method: 'PUT',
-      headers: {'Content-Type': 'application/json'},
+      headers: apiHeaders(true),
       body: JSON.stringify({ phase: 'Stopped', message: 'Stopped by user via dashboard' })
     }).catch(() => { btn.disabled = false; btn.textContent = '⏹ Stop'; });
   }
@@ -343,14 +351,15 @@
     btn.disabled = true;
     btn.textContent = 'Removing…';
     await fetch(`/databases/${id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: apiHeaders()
     }).catch(() => { btn.disabled = false; btn.textContent = '✕ Remove'; });
   }
 
   // ---- Data loading ----
 
   async function loadAll() {
-    const res = await fetch('/databases');
+    const res = await fetch('/databases', { headers: apiHeaders() });
     const list = await res.json();
     list.forEach(db => { dbs[db.id] = db; });
     render();

@@ -40,12 +40,14 @@ type statusUpdateRequest struct {
 // APIClient calls the mock Oracle middleware API.
 type APIClient struct {
 	BaseURL string
+	APIKey  string
 	HTTP    *http.Client
 }
 
-func NewAPIClient(baseURL string) *APIClient {
+func NewAPIClient(baseURL, apiKey string) *APIClient {
 	return &APIClient{
 		BaseURL: baseURL,
+		APIKey:  apiKey,
 		HTTP:    &http.Client{Timeout: 10 * time.Second},
 	}
 }
@@ -62,6 +64,9 @@ func (c *APIClient) Delete(id string) error {
 	req, err := http.NewRequest(http.MethodDelete, c.BaseURL+"/databases/"+id, nil)
 	if err != nil {
 		return err
+	}
+	if c.APIKey != "" {
+		req.Header.Set("X-API-Key", c.APIKey)
 	}
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
@@ -90,6 +95,9 @@ func (c *APIClient) doJSON(method, url string, body interface{}) (*DBResponse, e
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if c.APIKey != "" {
+		req.Header.Set("X-API-Key", c.APIKey)
+	}
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
 		return nil, err

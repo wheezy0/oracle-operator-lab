@@ -27,6 +27,13 @@ webhook:
     key: ""   # base64-encoded TLS private key
     ca: ""    # base64-encoded CA certificate (used as caBundle in webhook config)
 
+# API key authentication between the operator and the mock API.
+# Leave empty to disable authentication (useful for local testing).
+# Set a strong random string before deploying to a shared environment.
+# Example: helm install ... --set auth.apiKey="$(openssl rand -hex 32)"
+auth:
+  apiKey: ""
+
 # Team namespaces and RBAC — set enabled: false to skip
 teams:
   enabled: true

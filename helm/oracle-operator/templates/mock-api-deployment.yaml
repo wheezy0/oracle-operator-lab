@@ -24,6 +24,12 @@ spec:
           env:
             - name: DATABASE_URL
               value: sqlite:////data/mock_oracle.db
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: oracle-operator-api-key
+                  key: api-key
+                  optional: true
           volumeMounts:
             - name: data
               mountPath: /data

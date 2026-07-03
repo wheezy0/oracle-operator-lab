@@ -183,12 +183,14 @@ func main() {
 	if apiURL == "" {
 		apiURL = "http://localhost:8080"
 	}
-	setupLog.Info("Using mock API", "url", apiURL)
+	apiKey := os.Getenv("MOCK_API_KEY")
+	setupLog.Info("Using mock API", "url", apiURL, "auth", apiKey != "")
 
 	if err := (&controller.OracleDatabaseReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		APIURL: apiURL,
+		APIKey: apiKey,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "Failed to create controller", "controller", "oracledatabase")
 		os.Exit(1)

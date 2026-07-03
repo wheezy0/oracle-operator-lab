@@ -7,15 +7,34 @@ A REST API built with **FastAPI + SQLite** that simulates an Oracle database pro
 ## Base URL
 
 ```
-http://localhost:8080
+http://localhost:30080
 ```
+
+## Authentication
+
+When the Helm chart is installed with `--set auth.apiKey=...`, all `/databases` endpoints require an `X-API-Key` header:
+
+```bash
+curl -H "X-API-Key: <your-key>" http://localhost:30080/databases
+```
+
+Retrieve the key from the cluster at any time:
+
+```bash
+kubectl get secret oracle-operator-api-key -n oracle-system \
+  -o jsonpath='{.data.api-key}' | base64 -d
+```
+
+If no key was set during install, authentication is disabled and the header is not required.
+
+The `/databases/watch` SSE endpoint and the `/ui` dashboard are exempt from the key check.
 
 ## Swagger UI
 
 FastAPI generates interactive documentation automatically:
 
 ```
-http://localhost:8080/docs
+http://localhost:30080/docs
 ```
 
 ---
@@ -109,7 +128,7 @@ Optional: `characterSet` (defaults to `AL32UTF8`), `serviceName`, `pdbName`.
 **curl example:**
 
 ```bash
-curl -s -X POST http://localhost:8080/databases \
+curl -s -X POST http://localhost:30080/databases \
   -H "Content-Type: application/json" \
   -d '{
     "dbName": "TESTDB",
@@ -128,7 +147,7 @@ Returns all database records.
 **Response:** `200 OK` — array of database objects.
 
 ```bash
-curl -s http://localhost:8080/databases | python3 -m json.tool
+curl -s http://localhost:30080/databases | python3 -m json.tool
 ```
 
 ---
@@ -140,7 +159,7 @@ Returns a single database record by its UUID.
 **Response:** `200 OK` — database object, or `404 Not Found`.
 
 ```bash
-curl -s http://localhost:8080/databases/1f2ecada-a4b5-4e20-b6d2-37f7c131d7d7 \
+curl -s http://localhost:30080/databases/1f2ecada-a4b5-4e20-b6d2-37f7c131d7d7 \
   | python3 -m json.tool
 ```
 
@@ -155,7 +174,7 @@ Replaces all spec fields. Does **not** touch `phase` or `message` — those are 
 **Response:** `200 OK` — updated database object, or `404 Not Found`.
 
 ```bash
-curl -s -X PUT http://localhost:8080/databases/1f2ecada-a4b5-4e20-b6d2-37f7c131d7d7 \
+curl -s -X PUT http://localhost:30080/databases/1f2ecada-a4b5-4e20-b6d2-37f7c131d7d7 \
   -H "Content-Type: application/json" \
   -d '{
     "dbName": "PRODDB01",
@@ -182,7 +201,7 @@ Updates only the fields provided. Omitted fields keep their current values.
 **Response:** `200 OK` — updated database object, or `404 Not Found`.
 
 ```bash
-curl -s -X PATCH http://localhost:8080/databases/1f2ecada-a4b5-4e20-b6d2-37f7c131d7d7 \
+curl -s -X PATCH http://localhost:30080/databases/1f2ecada-a4b5-4e20-b6d2-37f7c131d7d7 \
   -H "Content-Type: application/json" \
   -d '{"sizeGB": 2000}' | python3 -m json.tool
 ```
@@ -196,7 +215,7 @@ Removes the database record permanently.
 **Response:** `204 No Content`, or `404 Not Found`.
 
 ```bash
-curl -s -X DELETE http://localhost:8080/databases/1f2ecada-a4b5-4e20-b6d2-37f7c131d7d7
+curl -s -X DELETE http://localhost:30080/databases/1f2ecada-a4b5-4e20-b6d2-37f7c131d7d7
 ```
 
 ---
@@ -216,7 +235,7 @@ Returns only the status fields of a database record. Lightweight — useful for 
 ```
 
 ```bash
-curl -s http://localhost:8080/databases/1f2ecada-a4b5-4e20-b6d2-37f7c131d7d7/status
+curl -s http://localhost:30080/databases/1f2ecada-a4b5-4e20-b6d2-37f7c131d7d7/status
 ```
 
 ---
@@ -239,7 +258,7 @@ Setting phase to `Creating` or `Starting` automatically triggers the 8-second pr
 **Response:** `200 OK` — status object.
 
 ```bash
-curl -s -X PUT http://localhost:8080/databases/1f2ecada-a4b5-4e20-b6d2-37f7c131d7d7/status \
+curl -s -X PUT http://localhost:30080/databases/1f2ecada-a4b5-4e20-b6d2-37f7c131d7d7/status \
   -H "Content-Type: application/json" \
   -d '{"phase": "Ready", "message": "Manually set to Ready"}' \
   | python3 -m json.tool
@@ -252,7 +271,7 @@ curl -s -X PUT http://localhost:8080/databases/1f2ecada-a4b5-4e20-b6d2-37f7c131d
 Serves the web dashboard as an HTML page. Open in a browser:
 
 ```
-http://localhost:8080/ui
+http://localhost:30080/ui
 ```
 
 The dashboard shows all databases in a table with real-time updates via SSE. It includes:
@@ -284,7 +303,7 @@ A `keepalive` comment is sent every 15 seconds to keep the connection alive.
 
 ```bash
 # Stream events in real time — open in a separate terminal
-curl -s -N http://localhost:8080/databases/watch
+curl -s -N http://localhost:30080/databases/watch
 ```
 
 ---

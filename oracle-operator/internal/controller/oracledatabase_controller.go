@@ -37,6 +37,7 @@ type OracleDatabaseReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 	APIURL string
+	APIKey string
 }
 
 // +kubebuilder:rbac:groups=oracle.dboperator.io,resources=oracledatabases,verbs=get;list;watch;create;update;patch;delete
@@ -51,7 +52,7 @@ func (r *OracleDatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	api := NewAPIClient(r.APIURL)
+	api := NewAPIClient(r.APIURL, r.APIKey)
 
 	// -----------------------------------------------------------------------
 	// Deletion: if the resource is being deleted, clean up on the API side

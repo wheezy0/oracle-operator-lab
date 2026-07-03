@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import AsyncGenerator, Optional
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import Column, DateTime, Integer, String, Text, create_engine
@@ -24,6 +24,7 @@ from sse_starlette.sse import EventSourceResponse
 # ---------------------------------------------------------------------------
 
 _db_url = os.getenv("DATABASE_URL", "sqlite:///./mock_oracle.db")
+_api_key = os.getenv("API_KEY", "")
 engine = create_engine(
     _db_url,
     connect_args={"check_same_thread": False},
@@ -162,14 +163,22 @@ app = FastAPI(
 )
 
 
+def verify_api_key(x_api_key: str = Header(default="", alias="X-API-Key")) -> None:
+    """Require X-API-Key header when API_KEY env var is set."""
+    if _api_key and x_api_key != _api_key:
+        raise HTTPException(status_code=403, detail="Forbidden: invalid or missing X-API-Key")
+
+
 # ---------------------------------------------------------------------------
 # Routes — order matters: /watch, /ui and /status must come before /{db_id}
 # ---------------------------------------------------------------------------
 
 @app.get("/ui", response_class=HTMLResponse, include_in_schema=False)
 def ui():
-    """Serve the web dashboard."""
-    return (Path(__file__).parent / "static" / "index.html").read_text()
+    """Serve the web dashboard. Injects the API key so the JS can authenticate."""
+    html = (Path(__file__).parent / "static" / "index.html").read_text()
+    html = html.replace("__API_KEY__", _api_key)
+    return HTMLResponse(html)
 
 
 @app.get("/databases/watch")
@@ -194,7 +203,7 @@ async def watch_databases(request: Request):
     return EventSourceResponse(event_generator())
 
 
-@app.post("/databases", status_code=201)
+@app.post("/databases", status_code=201, dependencies=[Depends(verify_api_key)])
 def create_database(body: DatabaseCreate, background_tasks: BackgroundTasks):
     """Create a new database record. Phase starts as 'Creating', moves to 'Ready' after ~8s."""
     session = get_db()
@@ -222,7 +231,7 @@ def create_database(body: DatabaseCreate, background_tasks: BackgroundTasks):
         session.close()
 
 
-@app.get("/databases")
+@app.get("/databases", dependencies=[Depends(verify_api_key)])
 def list_databases():
     """Return all database records."""
     session = get_db()
@@ -233,7 +242,7 @@ def list_databases():
         session.close()
 
 
-@app.get("/databases/{db_id}")
+@app.get("/databases/{db_id}", dependencies=[Depends(verify_api_key)])
 def get_database(db_id: str):
     """Return a single database record by ID."""
     session = get_db()
@@ -243,7 +252,7 @@ def get_database(db_id: str):
         session.close()
 
 
-@app.put("/databases/{db_id}")
+@app.put("/databases/{db_id}", dependencies=[Depends(verify_api_key)])
 def update_database(db_id: str, body: DatabaseCreate):
     """Full update — replaces all spec fields."""
     session = get_db()
@@ -269,7 +278,7 @@ def update_database(db_id: str, body: DatabaseCreate):
         session.close()
 
 
-@app.patch("/databases/{db_id}")
+@app.patch("/databases/{db_id}", dependencies=[Depends(verify_api_key)])
 def patch_database(db_id: str, body: DatabaseUpdate):
     """Partial update — only provided fields are changed."""
     session = get_db()
@@ -298,7 +307,7 @@ def patch_database(db_id: str, body: DatabaseUpdate):
         session.close()
 
 
-@app.delete("/databases/{db_id}", status_code=204)
+@app.delete("/databases/{db_id}", status_code=204, dependencies=[Depends(verify_api_key)])
 def delete_database(db_id: str):
     """Delete a database record."""
     session = get_db()
@@ -312,7 +321,7 @@ def delete_database(db_id: str):
         session.close()
 
 
-@app.get("/databases/{db_id}/status")
+@app.get("/databases/{db_id}/status", dependencies=[Depends(verify_api_key)])
 def get_status(db_id: str):
     """Return only the status fields of a database record."""
     session = get_db()
@@ -323,7 +332,7 @@ def get_status(db_id: str):
         session.close()
 
 
-@app.put("/databases/{db_id}/status")
+@app.put("/databases/{db_id}/status", dependencies=[Depends(verify_api_key)])
 def update_status(db_id: str, body: StatusUpdate, background_tasks: BackgroundTasks):
     """Update only the status fields (phase and message).
     Setting phase to 'Creating' automatically triggers the provisioning simulation."""

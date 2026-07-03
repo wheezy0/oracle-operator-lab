@@ -27,6 +27,12 @@ spec:
               value: http://mock-oracle-api.{{ .Values.namespace }}.svc.cluster.local:8080
             - name: ENABLE_WEBHOOKS
               value: "true"
+            - name: MOCK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: oracle-operator-api-key
+                  key: api-key
+                  optional: true
           ports:
             - containerPort: 9443
               name: webhook

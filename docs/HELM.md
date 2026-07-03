@@ -68,8 +68,18 @@ This creates `helm/certs/` with the raw cert files and `helm/certs.yaml` with th
 
 ```bash
 helm install oracle-operator ~/oracle-operator-lab/helm/oracle-operator \
-  -f ~/oracle-operator-lab/helm/certs.yaml
+  -f ~/oracle-operator-lab/helm/certs.yaml \
+  --set auth.apiKey="$(openssl rand -hex 32)"
 ```
+
+This generates a random 32-byte API key and stores it in a Kubernetes Secret (`oracle-operator-api-key`). The operator and mock API both receive the key via environment variable.
+
+> **Note:** If you omit `--set auth.apiKey=...`, authentication is disabled. All API endpoints are open. This is fine for local testing.
+
+> **Important:** Save the key if you need to use it manually (e.g. with curl). To retrieve it later:
+> ```bash
+> kubectl get secret oracle-operator-api-key -n oracle-system -o jsonpath='{.data.api-key}' | base64 -d
+> ```
 
 Helm creates in order:
 1. `oracle-system` namespace
