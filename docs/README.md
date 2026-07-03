@@ -2,6 +2,7 @@
 
 | Document | Description |
 |----------|-------------|
+| [TLDR_PRESENTATION.md](TLDR_PRESENTATION.md) | Components and workflow — quick overview |
 | [PRESENTATION.md](PRESENTATION.md) | Architecture overview, design decisions, project summary |
 | [IMPLEMENTATION.md](IMPLEMENTATION.md) | Step-by-step build guide from scratch |
 | [API.md](API.md) | Mock API endpoint reference with curl examples |
