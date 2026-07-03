@@ -35,7 +35,7 @@ Packages everything into a single installable unit. One `helm install` command c
 5. The mock API creates a record, sets phase to `Creating`, starts an 8-second background task, and returns the new database ID.
 6. The operator saves the ID and phase to the resource status. It requeues itself to check again in 10 seconds.
 7. After 8 seconds the mock API background task sets the phase to `Ready`.
-8. The operator's next reconcile runs, calls `PUT /databases/{id}` (syncing the spec), gets back `Ready`, and updates the status. It then requeues for 30 seconds.
+8. The operator's next reconcile runs. This time `dbID` is already in the status, so it calls `PUT /databases/{id}` to sync the spec and fetch the latest phase. It gets back `Ready`, updates the status, and requeues for 30 seconds.
 9. The database is now `Ready`. The operator keeps polling every 30 seconds to catch any unexpected state changes.
 
 ---
